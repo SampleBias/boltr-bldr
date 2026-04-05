@@ -4,105 +4,134 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Boltr Bldr</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
     <nav>
-        <div class="nav-brand">
-            <span class="logo">⚡</span> Boltr Bldr
-        </div>
+        <div class="nav-brand">BOLTR · bldr</div>
         <div class="nav-links">
-            <a href="#" data-page="dashboard" class="active">Dashboard</a>
-            <a href="#" data-page="ingest">Ingest</a>
-            <a href="#" data-page="artifacts">Artifacts</a>
+            <a href="#" data-page="dashboard" class="active">1. Dashboard</a>
+            <a href="#" data-page="ingest">2. Job builder</a>
+            <a href="#" data-page="artifacts">3. Artifacts</a>
         </div>
     </nav>
 
     <main>
         <!-- Dashboard -->
         <section id="page-dashboard" class="page active">
-            <h1>Dashboard</h1>
+            <div class="section-rule">---</div>
+            <h1 class="section-title">0. Status</h1>
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-value" id="stat-artifacts">—</div>
-                    <div class="stat-label">Total Artifacts</div>
+                    <div class="stat-label">artifacts</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value" id="stat-yaml">—</div>
-                    <div class="stat-label">YAML Files</div>
+                    <div class="stat-label">yaml</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value" id="stat-npz">—</div>
-                    <div class="stat-label">NPZ Files</div>
+                    <div class="stat-label">npz</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value" id="stat-packages">—</div>
-                    <div class="stat-label">Packages</div>
+                    <div class="stat-label">packages</div>
                 </div>
                 <div class="stat-card wide">
                     <div class="stat-value" id="stat-size">—</div>
-                    <div class="stat-label">Total Size</div>
+                    <div class="stat-label">total_size</div>
                 </div>
             </div>
             <div class="status-bar" id="status-bar">
-                <span class="status-dot"></span> Checking status...
+                <span class="status-dot"></span> checking data_dir…
             </div>
         </section>
 
-        <!-- Ingest -->
+        <!-- Job builder (AlphaFold-style + legacy fetch) -->
         <section id="page-ingest" class="page">
-            <h1>Ingest Protein Data</h1>
-            <p class="page-desc">Fetch protein data from RCSB PDB and/or UniProt databases.</p>
+            <pre class="ascii-banner" id="boltr-banner">  ___      _     _              _     
+ | _ )_  _| |__ | |_ __ _ _ _ _| |_ 
+ | _ \ || | '_ \| / _` | '_| ' \  _|
+ |___/\_,_|_.__/_|\__,_|_| |_||_\__|
+</pre>
+            <div class="section-rule">---</div>
+            <h1 class="section-title">1. Prediction job (AF3-style)</h1>
+            <p class="page-desc">Build <code>sequences</code> like AlphaFold Server: protein / DNA / RNA / ligand. Output: <code>*.boltr.yaml</code> with embedded <code>af3_input</code>.</p>
 
+            <div class="form-row two">
+                <div class="form-group">
+                    <label for="job-name">name</label>
+                    <input type="text" id="job-name" placeholder="my_complex" value="manual-job" />
+                </div>
+                <div class="form-group">
+                    <label for="job-seeds">modelSeeds (comma-separated)</label>
+                    <input type="text" id="job-seeds" placeholder="1, 2" value="1" />
+                </div>
+            </div>
             <div class="form-group">
-                <label for="ingest-pdb">PDB IDs</label>
-                <input type="text" id="ingest-pdb" placeholder="e.g., 1ABC 7BV2 4HHB" />
-                <small>Space-separated PDB IDs</small>
+                <label for="schema-version">schema version</label>
+                <input type="text" id="schema-version" value="1.0.0" />
             </div>
 
-            <div class="form-group">
-                <label for="ingest-uniprot">UniProt Accessions</label>
-                <input type="text" id="ingest-uniprot" placeholder="e.g., P12345 Q9Y6K9" />
-                <small>Space-separated UniProt accessions</small>
+            <div class="section-rule">---</div>
+            <h2 class="section-title">1.1 entities</h2>
+            <div id="entity-rows" class="entity-rows"></div>
+            <button type="button" id="btn-add-entity" class="btn btn-secondary btn-small">+ add entity</button>
+
+            <div class="btn-row">
+                <button type="button" id="btn-generate-yaml" class="btn btn-primary">Generate YAML</button>
+                <button type="button" id="btn-download-yaml" class="btn btn-secondary" disabled>Download YAML</button>
+                <button type="button" id="btn-clear-job" class="btn btn-secondary">Clear</button>
             </div>
+            <div id="job-yaml-result" class="result-area hidden"></div>
 
-            <button id="btn-ingest" class="btn btn-primary">Fetch Data</button>
-            <div id="ingest-result" class="result-area hidden"></div>
+            <details class="legacy-block">
+                <summary>Legacy: fetch PDB / UniProt (pipeline)</summary>
+                <div class="form-group">
+                    <label for="ingest-pdb">PDB IDs</label>
+                    <input type="text" id="ingest-pdb" placeholder="4HHB 1ABC" />
+                </div>
+                <div class="form-group">
+                    <label for="ingest-uniprot">UniProt accessions</label>
+                    <input type="text" id="ingest-uniprot" placeholder="P68871" />
+                </div>
+                <button id="btn-ingest" class="btn btn-secondary">Fetch data</button>
+                <div id="ingest-result" class="result-area hidden"></div>
 
-            <hr>
+                <h3 class="subsection-title">Normalize</h3>
+                <button id="btn-normalize" class="btn btn-secondary">Normalize</button>
+                <div id="normalize-result" class="result-area hidden"></div>
 
-            <h2>Normalize</h2>
-            <p class="page-desc">Normalize ingested data into unified records.</p>
-            <button id="btn-normalize" class="btn btn-secondary">Normalize</button>
-            <div id="normalize-result" class="result-area hidden"></div>
-
-            <hr>
-
-            <h2>Emit YAML</h2>
-            <p class="page-desc">Generate Boltr-compatible YAML from normalized data.</p>
-            <div class="form-group">
-                <label for="emit-version">Schema Version</label>
-                <input type="text" id="emit-version" value="1.0.0" />
-            </div>
-            <button id="btn-emit" class="btn btn-secondary">Emit YAML</button>
-            <div id="emit-result" class="result-area hidden"></div>
+                <h3 class="subsection-title">Emit YAML (from normalized)</h3>
+                <div class="form-group">
+                    <label for="emit-version">Schema version</label>
+                    <input type="text" id="emit-version" value="1.0.0" />
+                </div>
+                <button id="btn-emit" class="btn btn-secondary">Emit YAML</button>
+                <div id="emit-result" class="result-area hidden"></div>
+            </details>
         </section>
 
         <!-- Artifacts -->
         <section id="page-artifacts" class="page">
-            <h1>Indexed Artifacts</h1>
+            <div class="section-rule">---</div>
+            <h1 class="section-title">2. Indexed artifacts</h1>
             <div class="toolbar">
                 <button id="btn-refresh-artifacts" class="btn btn-secondary">Refresh</button>
-                <button id="btn-reindex" class="btn btn-primary">Re-index All</button>
+                <button id="btn-reindex" class="btn btn-primary">Re-index all</button>
             </div>
             <table id="artifacts-table">
                 <thead>
                     <tr>
-                        <th>Type</th>
-                        <th>Path</th>
-                        <th>Source</th>
-                        <th>Size</th>
-                        <th>SHA256</th>
+                        <th>type</th>
+                        <th>path</th>
+                        <th>source</th>
+                        <th>size</th>
+                        <th>sha256</th>
                     </tr>
                 </thead>
                 <tbody id="artifacts-body">
@@ -113,7 +142,7 @@
     </main>
 
     <footer>
-        Boltr Bldr v0.1.0 · <a href="https://github.com/boltr-bldr" target="_blank">GitHub</a>
+        Boltr Bldr v0.1.0 · local WebUI · <a href="https://github.com/boltr-bldr" target="_blank" rel="noopener">GitHub</a>
     </footer>
 
     <script src="/app.js"></script>

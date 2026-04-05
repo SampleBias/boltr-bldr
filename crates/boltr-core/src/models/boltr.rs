@@ -32,6 +32,9 @@ pub struct BoltrDocument {
     /// Associated artifacts
     #[serde(skip_serializing_if = "Option::is_none")]
     pub artifacts: Option<Vec<BoltrArtifactRef>>,
+    /// AlphaFold 3–compatible job definition (sequences, seeds, dialect)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub af3_input: Option<crate::models::af3_input::Alphafold3Job>,
 }
 
 /// Source database reference
@@ -54,10 +57,10 @@ pub struct BoltrProtein {
     /// Organism
     pub organism: String,
     /// Gene names
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub gene_names: Vec<String>,
     /// EC numbers
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ec_numbers: Vec<String>,
 }
 
@@ -80,7 +83,7 @@ pub struct BoltrStructure {
     /// Chain summaries
     pub chains: Vec<BoltrChain>,
     /// Entity summaries
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub entities: Vec<BoltrEntity>,
 }
 
@@ -111,7 +114,7 @@ pub struct BoltrSequence {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub molecular_weight: Option<u32>,
     /// Domain features
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub features: Vec<BoltrFeature>,
 }
 
@@ -134,10 +137,10 @@ pub struct BoltrAnnotations {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pathway: Option<String>,
     /// Keywords
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub keywords: Vec<String>,
     /// Additional comments
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub comments: Vec<String>,
 }
 

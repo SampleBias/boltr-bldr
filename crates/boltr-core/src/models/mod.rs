@@ -2,12 +2,17 @@
 
 pub mod pdb;
 pub mod uniprot;
+pub mod af3_input;
 pub mod boltr;
 pub mod artifact;
 
 pub use pdb::*;
 pub use uniprot::*;
 pub use boltr::*;
+pub use af3_input::{
+    Af3Dna, Af3Id, Af3Ligand, Af3Protein, Af3Rna, Af3Template, Alphafold3Job, BuilderEntity,
+    BuilderEntityKind, SequenceEntry,
+};
 pub use artifact::*;
 
 use serde::{Deserialize, Serialize};

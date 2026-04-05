@@ -28,6 +28,7 @@ boltr-bldr/
 │   │   │   │   ├── pdb.rs       # PDB structures
 │   │   │   │   ├── uniprot.rs   # UniProt structures
 │   │   │   │   ├── boltr.rs     # Boltr YAML schema
+│   │   │   │   ├── af3_input.rs # AF3-style sequences + builder entities
 │   │   │   │   └── artifact.rs  # manifest.json, NPZ
 │   │   │   ├── ingest/     # Data ingestion
 │   │   │   │   ├── mod.rs
@@ -85,6 +86,6 @@ cargo run --bin boltr-cli -- index --rebuild
 cargo run --bin boltr-cli -- pipeline --pdb 1ABC --uniprot P12345 --output data/output/
 
 # WebUI
-cargo run --bin boltr-web -- --port 8080
-# Then open http://localhost:8080
+cargo run --bin boltr-web -- --port 8081
+# Then open http://localhost:8081
 ```

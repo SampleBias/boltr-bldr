@@ -6,6 +6,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use axum::extract::DefaultBodyLimit;
 use axum::Router;
 use clap::Parser;
 use tower_http::cors::CorsLayer;
@@ -20,7 +21,7 @@ mod routes;
 #[command(version, about = "Boltr Bldr WebUI — local browser interface")]
 struct WebCli {
     /// Port to listen on
-    #[arg(long, default_value = "8080", env = "BOLTR_WEB_PORT")]
+    #[arg(long, default_value = "8081", env = "BOLTR_WEB_PORT")]
     port: u16,
 
     /// Host to bind to
@@ -65,6 +66,7 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .merge(routes::api_router(state.clone()))
         .fallback_service(ServeDir::new(static_dir))
+        .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
         .layer(CorsLayer::permissive());
 
     let addr = format!("{}:{}", cli.host, cli.port);

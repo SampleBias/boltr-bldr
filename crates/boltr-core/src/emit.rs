@@ -5,6 +5,9 @@
 use std::path::{Path, PathBuf};
 
 use crate::error::{Error, Result};
+use crate::models::af3_input::{
+    first_protein_sequence, sequences_from_builder_entities, Alphafold3Job, BuilderEntity,
+};
 use crate::models::boltr::*;
 use crate::normalize::NormalizedRecord;
 
@@ -227,6 +230,7 @@ fn build_boltr_document(record: &NormalizedRecord, version: &str) -> Result<Bolt
         annotations,
         parameters: None,
         artifacts: None,
+        af3_input: None,
     })
 }
 
@@ -245,6 +249,115 @@ fn validate_boltr_document(doc: &BoltrDocument) -> Result<()> {
         return Err(Error::Emit("Protein name is empty".into()));
     }
     Ok(())
+}
+
+fn sanitize_manual_job_id(s: &str) -> String {
+    let t: String = s
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    if t.is_empty() {
+        "job".to_string()
+    } else {
+        t
+    }
+}
+
+/// Build a [`BoltrDocument`] from manual job builder entities and write YAML (AlphaFold-style job).
+pub fn build_boltr_document_with_af3(
+    schema_version: &str,
+    job_name: &str,
+    model_seeds: Vec<i64>,
+    entities: &[BuilderEntity],
+) -> std::result::Result<BoltrDocument, String> {
+    let sequences = sequences_from_builder_entities(entities)?;
+    let af3 = Alphafold3Job::new(job_name.to_string(), model_seeds, sequences.clone());
+
+    let display_name = if job_name.trim().is_empty() {
+        "manual-job".to_string()
+    } else {
+        job_name.trim().to_string()
+    };
+
+    let first_aa = first_protein_sequence(&sequences);
+    let seq_str = first_aa.clone().unwrap_or_default();
+    let seq_len = seq_str.len() as u32;
+
+    Ok(BoltrDocument {
+        version: schema_version.to_string(),
+        id: uuid::Uuid::new_v4().to_string(),
+        generated_at: chrono::Utc::now(),
+        sources: vec![BoltrSource {
+            database: "manual".to_string(),
+            id: sanitize_manual_job_id(&display_name),
+            url: None,
+        }],
+        protein: BoltrProtein {
+            name: display_name.clone(),
+            organism: "Unknown".to_string(),
+            gene_names: Vec::new(),
+            ec_numbers: Vec::new(),
+        },
+        structure: None,
+        sequence: BoltrSequence {
+            sequence: seq_str,
+            length: seq_len,
+            molecular_weight: None,
+            features: Vec::new(),
+        },
+        annotations: None,
+        parameters: None,
+        artifacts: None,
+        af3_input: Some(af3),
+    })
+}
+
+/// Emit a manual AF3-style job to `.boltr.yaml` under `output_dir`.
+pub fn emit_af3_job(
+    schema_version: &str,
+    job_name: &str,
+    model_seeds: Vec<i64>,
+    entities: &[BuilderEntity],
+    output_dir: &std::path::Path,
+) -> Result<EmittedFile> {
+    let doc = build_boltr_document_with_af3(schema_version, job_name, model_seeds, entities)
+        .map_err(|e| Error::Emit(e))?;
+    validate_boltr_document(&doc)?;
+
+    let yaml_str = serde_yaml::to_string(&doc)?;
+
+    let safe = sanitize_manual_job_id(job_name);
+    let short = &uuid::Uuid::new_v4().to_string()[..8];
+    let filename = format!("{}_{}.boltr.yaml", safe, short);
+    let output_path = output_dir.join(&filename);
+
+    if let Some(parent) = output_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    std::fs::write(&output_path, &yaml_str)?;
+
+    let sha256 = compute_sha256(&yaml_str);
+    let size_bytes = yaml_str.len() as u64;
+
+    tracing::info!(
+        path = %output_path.display(),
+        sha256 = %sha256[..16],
+        size = size_bytes,
+        "Emitted AF3 Boltr YAML"
+    );
+
+    Ok(EmittedFile {
+        path: output_path,
+        sha256,
+        size_bytes,
+    })
 }
 
 /// Build a descriptive filename for the YAML output
@@ -284,6 +397,7 @@ pub fn parse_yaml_file(path: &Path) -> Result<BoltrDocument> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::af3_input::{BuilderEntity, BuilderEntityKind};
 
     #[test]
     fn test_emit_options_default() {
@@ -296,5 +410,60 @@ mod tests {
     fn test_compute_sha256() {
         let hash = compute_sha256("hello");
         assert_eq!(hash.len(), 64); // SHA-256 is 64 hex chars
+    }
+
+    #[test]
+    fn test_build_boltr_document_with_af3_roundtrip() {
+        let entities = vec![
+            BuilderEntity {
+                kind: BuilderEntityKind::Protein,
+                copies: 1,
+                sequence: "ACDEFGHIK".into(),
+                smiles: String::new(),
+                ccd_codes: vec![],
+                mmcif_path: None,
+                pdb_path: None,
+                description: None,
+            },
+            BuilderEntity {
+                kind: BuilderEntityKind::Ligand,
+                copies: 1,
+                sequence: String::new(),
+                smiles: String::new(),
+                ccd_codes: vec!["ATP".into()],
+                mmcif_path: None,
+                pdb_path: None,
+                description: None,
+            },
+        ];
+        let doc = build_boltr_document_with_af3("1.0.0", "test-job", vec![1], &entities).unwrap();
+        assert!(doc.af3_input.is_some());
+        let yaml = serde_yaml::to_string(&doc).unwrap();
+        let parsed: BoltrDocument = serde_yaml::from_str(&yaml).unwrap();
+        assert_eq!(parsed.version, doc.version);
+        assert_eq!(parsed.af3_input.as_ref().unwrap().name, "test-job");
+    }
+
+    #[test]
+    fn test_emit_af3_job_writes_file() {
+        let tmp = std::env::temp_dir().join(format!("boltr_af3_test_{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let entities = vec![BuilderEntity {
+            kind: BuilderEntityKind::Protein,
+            copies: 1,
+            sequence: "MVLSP".into(),
+            smiles: String::new(),
+            ccd_codes: vec![],
+            mmcif_path: None,
+            pdb_path: None,
+            description: None,
+        }];
+        let emitted = emit_af3_job("1.0.0", "emit_test", vec![42], &entities, &tmp).unwrap();
+        assert!(emitted.path.exists());
+        let content = std::fs::read_to_string(&emitted.path).unwrap();
+        assert!(content.contains("alphafold3"));
+        assert!(content.contains("modelSeeds"));
+        let _doc: BoltrDocument = serde_yaml::from_str(&content).unwrap();
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }

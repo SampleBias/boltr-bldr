@@ -31,5 +31,8 @@ pub fn api_router(state: Arc<AppState>) -> Router {
         .route("/api/artifacts", get(handlers::list_artifacts))
         // List packages
         .route("/api/packages", get(handlers::list_packages))
+        // AlphaFold-style job YAML + structure upload
+        .route("/api/job-yaml", post(handlers::post_job_yaml))
+        .route("/api/upload-structure", post(handlers::upload_structure))
         .with_state(state)
 }

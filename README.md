@@ -23,6 +23,7 @@ boltr-bldr/
 │   │   │   ├── pdb.rs      # PDB entry, entities, atoms, chains
 │   │   │   ├── uniprot.rs  # UniProt entry, features, cross-refs
 │   │   │   ├── boltr.rs    # Boltr YAML schema models
+│   │   │   ├── af3_input.rs # AlphaFold3-style job block + builder entities
 │   │   │   └── artifact.rs # manifest.json, NPZ metadata
 │   │   ├── ingest/         # HTTP clients for PDB & UniProt
 │   │   ├── normalize.rs    # Normalization pipeline
@@ -53,8 +54,8 @@ cargo run --bin boltr-cli -- pipeline --pdb 4HHB --uniprot P68871
 cargo run --bin boltr-cli -- status --verbose
 
 # WebUI — Start local web server
-cargo run --bin boltr-web -- --port 8080
-# Open http://localhost:8080
+cargo run --bin boltr-web -- --port 8081
+# Open http://localhost:8081
 ```
 
 ## CLI Subcommands
@@ -73,7 +74,7 @@ cargo run --bin boltr-web -- --port 8080
 ## WebUI Pages
 
 - **Dashboard** — Real-time stats (artifacts, YAML files, NPZ files, packages, total size)
-- **Ingest** — Step-by-step: Fetch → Normalize → Emit YAML
+- **Job builder** — AlphaFold 3–style entities (protein / DNA / RNA / ligand), optional structure upload; emits `*.boltr.yaml` with `af3_input`. Legacy PDB/UniProt fetch lives under a collapsible section.
 - **Artifacts** — Browse and re-index all tracked artifacts
 
 ## Key Technologies
@@ -106,7 +107,7 @@ Environment variables (also available as CLI flags):
 |----------|---------|-------------|
 | `BOLTR_DATA_DIR` | `data` | Base data directory |
 | `BOLTR_LOG_LEVEL` | `info` | Log level (trace/debug/info/warn/error) |
-| `BOLTR_WEB_PORT` | `8080` | WebUI port |
+| `BOLTR_WEB_PORT` | `8081` | WebUI port |
 | `BOLTR_WEB_HOST` | `127.0.0.1` | WebUI bind address |
 
 ## License

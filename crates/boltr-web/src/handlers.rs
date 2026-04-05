@@ -3,10 +3,12 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::State,
+    extract::{Multipart, State},
     response::Json,
 };
 use serde::{Deserialize, Serialize};
+
+use boltr_core::models::BuilderEntity;
 
 use crate::AppState;
 
@@ -63,6 +65,20 @@ pub struct PipelineRequest {
     pub pdb: Vec<String>,
     pub uniprot: Vec<String>,
     pub output: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct JobYamlRequest {
+    pub name: String,
+    #[serde(default)]
+    pub model_seeds: Vec<i64>,
+    #[serde(default = "default_schema_version")]
+    pub version: String,
+    pub entities: Vec<BuilderEntity>,
+}
+
+fn default_schema_version() -> String {
+    "1.0.0".to_string()
 }
 
 // ── Handlers ────────────────────────────────────��───────────────────
@@ -391,6 +407,95 @@ pub async fn list_artifacts(
         }
         Err(e) => Json(ApiResponse::err(format!("Query failed: {}", e))),
     }
+}
+
+pub async fn post_job_yaml(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<JobYamlRequest>,
+) -> Json<ApiResponse> {
+    if req.entities.is_empty() {
+        return Json(ApiResponse::err("No entities specified"));
+    }
+
+    let seeds = if req.model_seeds.is_empty() {
+        vec![1]
+    } else {
+        req.model_seeds
+    };
+
+    let output_dir = state.data_dir.join("output");
+
+    match boltr_core::emit::emit_af3_job(
+        &req.version,
+        &req.name,
+        seeds,
+        &req.entities,
+        &output_dir,
+    ) {
+        Ok(emitted) => {
+            let yaml = std::fs::read_to_string(&emitted.path).unwrap_or_default();
+            Json(ApiResponse::ok(serde_json::json!({
+                "emitted": true,
+                "path": emitted.path.display().to_string(),
+                "sha256": emitted.sha256,
+                "size_bytes": emitted.size_bytes,
+                "yaml": yaml,
+            })))
+        }
+        Err(e) => Json(ApiResponse::err(format!("Emit failed: {}", e))),
+    }
+}
+
+pub async fn upload_structure(
+    State(state): State<Arc<AppState>>,
+    mut multipart: Multipart,
+) -> Json<ApiResponse> {
+    let uploads = state.data_dir.join("uploads");
+    if let Err(e) = std::fs::create_dir_all(&uploads) {
+        return Json(ApiResponse::err(format!("Cannot create uploads dir: {}", e)));
+    }
+
+    loop {
+        let field = match multipart.next_field().await {
+            Ok(Some(f)) => f,
+            Ok(None) => break,
+            Err(e) => return Json(ApiResponse::err(format!("Multipart error: {}", e))),
+        };
+
+        if field.name() != Some("file") {
+            continue;
+        }
+
+        let original = field
+            .file_name()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "structure.cif".into());
+        let ext = std::path::Path::new(&original)
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("cif");
+        let id = uuid::Uuid::new_v4().to_string();
+        let filename = format!("{}.{}", id, ext);
+        let path = uploads.join(&filename);
+
+        let bytes = match field.bytes().await {
+            Ok(b) => b,
+            Err(e) => return Json(ApiResponse::err(format!("Read error: {}", e))),
+        };
+
+        if let Err(e) = std::fs::write(&path, &bytes) {
+            return Json(ApiResponse::err(format!("Write error: {}", e)));
+        }
+
+        let rel = format!("uploads/{}", filename);
+        return Json(ApiResponse::ok(serde_json::json!({
+            "uploaded": true,
+            "path": rel,
+            "size_bytes": bytes.len(),
+        })));
+    }
+
+    Json(ApiResponse::err("No file field in multipart body"))
 }
 
 pub async fn list_packages(
