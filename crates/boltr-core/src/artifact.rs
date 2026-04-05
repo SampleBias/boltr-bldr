@@ -543,8 +543,7 @@ mod tests {
         assert!(content.contains("_refine.ls_d_res_high 1.50"));
 
         // Parse it back
-        let manager = ArtifactManager::new(&dir);
-        let parsed = manager.parse_cif(&path).unwrap();
+        let parsed = ArtifactManager::parse_cif(&path).unwrap();
         assert_eq!(parsed.pdb_id, "1ABC");
         assert_eq!(parsed.title, "Test Structure");
         assert_eq!(parsed.method, Some("X-RAY".to_string()));
