@@ -113,7 +113,7 @@ document.getElementById('btn-normalize').addEventListener('click', async () => {
     }
 });
 
-// ── Emit ────────────────────��────────────────────────────────────────
+// ── Emit ────────────────────────────────────────────────────────────
 
 document.getElementById('btn-emit').addEventListener('click', async () => {
     const version = document.getElementById('emit-version').value || '1.0.0';
@@ -129,32 +129,6 @@ document.getElementById('btn-emit').addEventListener('click', async () => {
     } finally {
         btn.disabled = false;
         btn.textContent = 'Emit YAML';
-    }
-});
-
-// ── Pipeline ─────────────────────────────────────────────────────────
-
-document.getElementById('btn-pipeline').addEventListener('click', async () => {
-    const pdbIds = parseIds(document.getElementById('pipeline-pdb').value);
-    const uniprotIds = parseIds(document.getElementById('pipeline-uniprot').value);
-
-    if (pdbIds.length === 0 && uniprotIds.length === 0) {
-        showResult('pipeline-result', 'Error: Enter at least one PDB ID or UniProt accession', true);
-        return;
-    }
-
-    const btn = document.getElementById('btn-pipeline');
-    btn.disabled = true;
-    btn.textContent = '⏳ Running...';
-
-    try {
-        const resp = await apiPost('/api/pipeline', { pdb: pdbIds, uniprot: uniprotIds });
-        showResult('pipeline-result', resp);
-    } catch (e) {
-        showResult('pipeline-result', `Error: ${e.message}`, true);
-    } finally {
-        btn.disabled = false;
-        btn.textContent = '🚀 Run Pipeline';
     }
 });
 
@@ -202,50 +176,6 @@ document.getElementById('btn-reindex').addEventListener('click', async () => {
     }
 });
 
-// ── Packages ─────────────────────────────────────────────────────────
-
-async function loadPackages() {
-    try {
-        const resp = await apiGet('/api/packages');
-        const tbody = document.getElementById('packages-body');
-
-        if (resp.success && resp.data && resp.data.packages && resp.data.packages.length > 0) {
-            tbody.innerHTML = resp.data.packages.map(p => `
-                <tr>
-                    <td class="mono">${esc(p.package_id)}</td>
-                    <td>${p.file_count}</td>
-                    <td>${formatBytes(p.total_size)}</td>
-                    <td>${esc(new Date(p.created_at).toLocaleString())}</td>
-                    <td>${esc(p.description || '—')}</td>
-                </tr>
-            `).join('');
-        } else {
-            tbody.innerHTML = '<tr><td colspan="5" class="empty">No packages found</td></tr>';
-        }
-    } catch (e) {
-        console.error('Failed to load packages:', e);
-    }
-}
-
-document.getElementById('btn-refresh-packages').addEventListener('click', loadPackages);
-
-document.getElementById('btn-package').addEventListener('click', async () => {
-    const btn = document.getElementById('btn-package');
-    btn.disabled = true;
-    btn.textContent = 'Packaging...';
-
-    try {
-        const resp = await apiPost('/api/package', {});
-        await loadPackages();
-        alert(resp.success ? `Package created: ${resp.data?.package_id}` : `Error: ${resp.error}`);
-    } catch (e) {
-        alert(`Error: ${e.message}`);
-    } finally {
-        btn.disabled = false;
-        btn.textContent = 'Package Current';
-    }
-});
-
 // ── Utilities ────────────────────────────────────────────────────────
 
 function esc(str) {
@@ -267,5 +197,4 @@ function formatBytes(bytes) {
 document.addEventListener('DOMContentLoaded', () => {
     loadDashboard();
     loadArtifacts();
-    loadPackages();
 });

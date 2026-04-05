@@ -1,6 +1,7 @@
 //! Boltr Bldr WebUI — local browser interface
 //!
-//! Exposes the same core features as the CLI via a local HTTP server.
+//! Exposes ingest, normalize, emit, status, and artifact indexing via a local HTTP server.
+//! Full pipeline and package management remain available in the CLI.
 
 use std::path::PathBuf;
 use std::sync::Arc;

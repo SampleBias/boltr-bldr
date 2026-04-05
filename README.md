@@ -74,9 +74,7 @@ cargo run --bin boltr-web -- --port 8080
 
 - **Dashboard** — Real-time stats (artifacts, YAML files, NPZ files, packages, total size)
 - **Ingest** — Step-by-step: Fetch → Normalize → Emit YAML
-- **Pipeline** — One-click full pipeline execution
 - **Artifacts** — Browse and re-index all tracked artifacts
-- **Packages** — View and create artifact bundles
 
 ## Key Technologies
 

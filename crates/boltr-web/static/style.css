@@ -204,28 +204,6 @@ hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
 
 .hidden { display: none !important; }
 
-/* Pipeline Steps */
-.pipeline-steps {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 1.5rem;
-    background: var(--bg-card);
-    border-radius: var(--radius);
-    margin-bottom: 1.5rem;
-    flex-wrap: wrap;
-}
-
-.step {
-    padding: 0.5rem 1rem;
-    background: var(--bg-input);
-    border-radius: var(--radius);
-    font-size: 0.9rem;
-}
-
-.step-arrow { color: var(--text-muted); font-size: 1.2rem; }
-
 /* Tables */
 .toolbar {
     display: flex;
@@ -274,6 +252,4 @@ footer a { color: var(--accent); text-decoration: none; }
 @media (max-width: 768px) {
     nav { flex-direction: column; height: auto; padding: 1rem; gap: 0.5rem; }
     main { padding: 0 1rem; }
-    .pipeline-steps { flex-direction: column; }
-    .step-arrow { transform: rotate(90deg); }
 }

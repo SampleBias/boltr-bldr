@@ -14,9 +14,7 @@
         <div class="nav-links">
             <a href="#" data-page="dashboard" class="active">Dashboard</a>
             <a href="#" data-page="ingest">Ingest</a>
-            <a href="#" data-page="pipeline">Pipeline</a>
             <a href="#" data-page="artifacts">Artifacts</a>
-            <a href="#" data-page="packages">Packages</a>
         </div>
     </nav>
 
@@ -90,37 +88,6 @@
             <div id="emit-result" class="result-area hidden"></div>
         </section>
 
-        <!-- Pipeline -->
-        <section id="page-pipeline" class="page">
-            <h1>Full Pipeline</h1>
-            <p class="page-desc">Run the complete pipeline: Ingest → Normalize → Emit → Package → Index</p>
-
-            <div class="pipeline-steps">
-                <div class="step">📥 Ingest</div>
-                <div class="step-arrow">→</div>
-                <div class="step">🔧 Normalize</div>
-                <div class="step-arrow">→</div>
-                <div class="step">📝 Emit</div>
-                <div class="step-arrow">→</div>
-                <div class="step">📦 Package</div>
-                <div class="step-arrow">→</div>
-                <div class="step">🗂️ Index</div>
-            </div>
-
-            <div class="form-group">
-                <label for="pipeline-pdb">PDB IDs</label>
-                <input type="text" id="pipeline-pdb" placeholder="e.g., 1ABC 7BV2" />
-            </div>
-
-            <div class="form-group">
-                <label for="pipeline-uniprot">UniProt Accessions</label>
-                <input type="text" id="pipeline-uniprot" placeholder="e.g., P12345" />
-            </div>
-
-            <button id="btn-pipeline" class="btn btn-primary btn-large">🚀 Run Pipeline</button>
-            <div id="pipeline-result" class="result-area hidden"></div>
-        </section>
-
         <!-- Artifacts -->
         <section id="page-artifacts" class="page">
             <h1>Indexed Artifacts</h1>
@@ -140,29 +107,6 @@
                 </thead>
                 <tbody id="artifacts-body">
                     <tr><td colspan="5" class="empty">No artifacts indexed</td></tr>
-                </tbody>
-            </table>
-        </section>
-
-        <!-- Packages -->
-        <section id="page-packages" class="page">
-            <h1>Packages</h1>
-            <div class="toolbar">
-                <button id="btn-refresh-packages" class="btn btn-secondary">Refresh</button>
-                <button id="btn-package" class="btn btn-primary">Package Current</button>
-            </div>
-            <table id="packages-table">
-                <thead>
-                    <tr>
-                        <th>Package ID</th>
-                        <th>Files</th>
-                        <th>Size</th>
-                        <th>Created</th>
-                        <th>Description</th>
-                    </tr>
-                </thead>
-                <tbody id="packages-body">
-                    <tr><td colspan="5" class="empty">No packages found</td></tr>
                 </tbody>
             </table>
         </section>
