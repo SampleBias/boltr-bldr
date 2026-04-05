@@ -1,5 +1,22 @@
 # ⚡ Boltr Bldr
 
+```
+___
+ _______    ______   __     ________  _______         __        __        __           
+|       \  /      \ |  \   |        \|       \       |  \      |  \      |  \          
+| $$$$$$$\|  $$$$$$\| $$    \$$$$$$$$| $$$$$$$\      | $$____  | $$  ____| $$  ______  
+| $$__/ $$| $$  | $$| $$      | $$   | $$__| $$      | $$    \ | $$ /      $$ /      \ 
+| $$    $$| $$  | $$| $$      | $$   | $$    $$      | $$$$$$$\| $$|  $$$$$$$|  $$$$$$\
+| $$$$$$$\| $$  | $$| $$      | $$   | $$$$$$$\      | $$  | $$| $$| $$  | $$| $$   \$$
+| $$__/ $$| $$__/ $$| $$_____ | $$   | $$  | $$      | $$__/ $$| $$| $$__| $$| $$      
+| $$    $$ \$$    $$| $$     \| $$   | $$  | $$      | $$    $$| $$ \$$    $$| $$      
+ \$$$$$$$   \$$$$$$  \$$$$$$$$ \$$    \$$   \$$       \$$$$$$$  \$$  \$$$$$$$ \$$      
+                                                                                       
+                                                                                       
+                                                                                       
+____
+```
+
 An all-Rust tool that ingests protein data from **RCSB PDB** and **UniProt**, normalizes it, and emits **Boltr-compatible YAML** input files. Supports packaging and indexing of associated artifacts (`manifest.json`, NPZ result files). YAML is the canonical input format.
 
 ## Dual Interface
