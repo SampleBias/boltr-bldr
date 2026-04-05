@@ -1,0 +1,15 @@
+# Rust
+/target/
+
+# Local runtime data (SQLite, generated YAML, packages)
+/data/
+
+# Environment
+.env
+.env.*
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store

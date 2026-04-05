@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boltr Bldr</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <nav>
+        <div class="nav-brand">
+            <span class="logo">⚡</span> Boltr Bldr
+        </div>
+        <div class="nav-links">
+            <a href="#" data-page="dashboard" class="active">Dashboard</a>
+            <a href="#" data-page="ingest">Ingest</a>
+            <a href="#" data-page="pipeline">Pipeline</a>
+            <a href="#" data-page="artifacts">Artifacts</a>
+            <a href="#" data-page="packages">Packages</a>
+        </div>
+    </nav>
+
+    <main>
+        <!-- Dashboard -->
+        <section id="page-dashboard" class="page active">
+            <h1>Dashboard</h1>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-artifacts">—</div>
+                    <div class="stat-label">Total Artifacts</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-yaml">—</div>
+                    <div class="stat-label">YAML Files</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-npz">—</div>
+                    <div class="stat-label">NPZ Files</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-packages">—</div>
+                    <div class="stat-label">Packages</div>
+                </div>
+                <div class="stat-card wide">
+                    <div class="stat-value" id="stat-size">—</div>
+                    <div class="stat-label">Total Size</div>
+                </div>
+            </div>
+            <div class="status-bar" id="status-bar">
+                <span class="status-dot"></span> Checking status...
+            </div>
+        </section>
+
+        <!-- Ingest -->
+        <section id="page-ingest" class="page">
+            <h1>Ingest Protein Data</h1>
+            <p class="page-desc">Fetch protein data from RCSB PDB and/or UniProt databases.</p>
+
+            <div class="form-group">
+                <label for="ingest-pdb">PDB IDs</label>
+                <input type="text" id="ingest-pdb" placeholder="e.g., 1ABC 7BV2 4HHB" />
+                <small>Space-separated PDB IDs</small>
+            </div>
+
+            <div class="form-group">
+                <label for="ingest-uniprot">UniProt Accessions</label>
+                <input type="text" id="ingest-uniprot" placeholder="e.g., P12345 Q9Y6K9" />
+                <small>Space-separated UniProt accessions</small>
+            </div>
+
+            <button id="btn-ingest" class="btn btn-primary">Fetch Data</button>
+            <div id="ingest-result" class="result-area hidden"></div>
+
+            <hr>
+
+            <h2>Normalize</h2>
+            <p class="page-desc">Normalize ingested data into unified records.</p>
+            <button id="btn-normalize" class="btn btn-secondary">Normalize</button>
+            <div id="normalize-result" class="result-area hidden"></div>
+
+            <hr>
+
+            <h2>Emit YAML</h2>
+            <p class="page-desc">Generate Boltr-compatible YAML from normalized data.</p>
+            <div class="form-group">
+                <label for="emit-version">Schema Version</label>
+                <input type="text" id="emit-version" value="1.0.0" />
+            </div>
+            <button id="btn-emit" class="btn btn-secondary">Emit YAML</button>
+            <div id="emit-result" class="result-area hidden"></div>
+        </section>
+
+        <!-- Pipeline -->
+        <section id="page-pipeline" class="page">
+            <h1>Full Pipeline</h1>
+            <p class="page-desc">Run the complete pipeline: Ingest → Normalize → Emit → Package → Index</p>
+
+            <div class="pipeline-steps">
+                <div class="step">📥 Ingest</div>
+                <div class="step-arrow">→</div>
+                <div class="step">🔧 Normalize</div>
+                <div class="step-arrow">→</div>
+                <div class="step">📝 Emit</div>
+                <div class="step-arrow">→</div>
+                <div class="step">📦 Package</div>
+                <div class="step-arrow">→</div>
+                <div class="step">🗂️ Index</div>
+            </div>
+
+            <div class="form-group">
+                <label for="pipeline-pdb">PDB IDs</label>
+                <input type="text" id="pipeline-pdb" placeholder="e.g., 1ABC 7BV2" />
+            </div>
+
+            <div class="form-group">
+                <label for="pipeline-uniprot">UniProt Accessions</label>
+                <input type="text" id="pipeline-uniprot" placeholder="e.g., P12345" />
+            </div>
+
+            <button id="btn-pipeline" class="btn btn-primary btn-large">🚀 Run Pipeline</button>
+            <div id="pipeline-result" class="result-area hidden"></div>
+        </section>
+
+        <!-- Artifacts -->
+        <section id="page-artifacts" class="page">
+            <h1>Indexed Artifacts</h1>
+            <div class="toolbar">
+                <button id="btn-refresh-artifacts" class="btn btn-secondary">Refresh</button>
+                <button id="btn-reindex" class="btn btn-primary">Re-index All</button>
+            </div>
+            <table id="artifacts-table">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Path</th>
+                        <th>Source</th>
+                        <th>Size</th>
+                        <th>SHA256</th>
+                    </tr>
+                </thead>
+                <tbody id="artifacts-body">
+                    <tr><td colspan="5" class="empty">No artifacts indexed</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Packages -->
+        <section id="page-packages" class="page">
+            <h1>Packages</h1>
+            <div class="toolbar">
+                <button id="btn-refresh-packages" class="btn btn-secondary">Refresh</button>
+                <button id="btn-package" class="btn btn-primary">Package Current</button>
+            </div>
+            <table id="packages-table">
+                <thead>
+                    <tr>
+                        <th>Package ID</th>
+                        <th>Files</th>
+                        <th>Size</th>
+                        <th>Created</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody id="packages-body">
+                    <tr><td colspan="5" class="empty">No packages found</td></tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <footer>
+        Boltr Bldr v0.1.0 · <a href="https://github.com/boltr-bldr" target="_blank">GitHub</a>
+    </footer>
+
+    <script src="/app.js"></script>
+</body>
+</html>
