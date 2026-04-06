@@ -90,9 +90,8 @@ cargo run --bin boltr-web -- --port 8081
 
 ## WebUI Pages
 
-- **Dashboard** — Real-time stats (artifacts, YAML files, NPZ files, packages, total size)
+- **Dashboard** — Real-time stats (artifacts, YAML files, NPZ files, packages, total size); browse and re-index tracked artifacts in a table
 - **Job builder** — AlphaFold 3–style entities (protein / DNA / RNA / ligand), optional structure upload; emits `*.boltr.yaml` with `af3_input`. Legacy PDB/UniProt fetch lives under a collapsible section.
-- **Artifacts** — Browse and re-index all tracked artifacts
 
 ## Key Technologies
 

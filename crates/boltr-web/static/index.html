@@ -15,7 +15,6 @@
         <div class="nav-links">
             <a href="#" data-page="dashboard" class="active">1. Dashboard</a>
             <a href="#" data-page="ingest">2. Job builder</a>
-            <a href="#" data-page="artifacts">3. Artifacts</a>
         </div>
     </nav>
 
@@ -64,6 +63,28 @@ ____
             <div class="status-bar" id="status-bar">
                 <span class="status-dot"></span> checking data_dir…
             </div>
+
+            <div class="section-rule">---</div>
+            <h2 class="section-title">1. Indexed artifacts</h2>
+            <div class="toolbar">
+                <button id="btn-refresh-artifacts" class="btn btn-secondary">Refresh</button>
+                <button id="btn-reindex" class="btn btn-primary">Re-index all</button>
+            </div>
+            <div id="artifacts-reindex-result" class="result-area hidden"></div>
+            <table id="artifacts-table">
+                <thead>
+                    <tr>
+                        <th>type</th>
+                        <th>path</th>
+                        <th>source</th>
+                        <th>size</th>
+                        <th>sha256</th>
+                    </tr>
+                </thead>
+                <tbody id="artifacts-body">
+                    <tr><td colspan="5" class="empty">No artifacts indexed</td></tr>
+                </tbody>
+            </table>
         </section>
 
         <!-- Job builder (AlphaFold-style + legacy fetch) -->
@@ -139,45 +160,6 @@ ____
                 <button id="btn-emit" class="btn btn-secondary">Emit YAML</button>
                 <div id="emit-result" class="result-area hidden"></div>
             </details>
-        </section>
-
-        <!-- Artifacts -->
-        <section id="page-artifacts" class="page">
-            <pre class="ascii-banner">___
- _______    ______   __     ________  _______         __        __        __           
-|       \  /      \ |  \   |        \|       \       |  \      |  \      |  \          
-| $$$$$$$\|  $$$$$$\| $$    \$$$$$$$$| $$$$$$$\      | $$____  | $$  ____| $$  ______  
-| $$__/ $$| $$  | $$| $$      | $$   | $$__| $$      | $$    \ | $$ /      $$ /      \ 
-| $$    $$| $$  | $$| $$      | $$   | $$    $$      | $$$$$$$\| $$|  $$$$$$$|  $$$$$$\
-| $$$$$$$\| $$  | $$| $$      | $$   | $$$$$$$\      | $$  | $$| $$| $$  | $$| $$   \$$
-| $$__/ $$| $$__/ $$| $$_____ | $$   | $$  | $$      | $$__/ $$| $$| $$__| $$| $$      
-| $$    $$ \$$    $$| $$     \| $$   | $$  | $$      | $$    $$| $$ \$$    $$| $$      
- \$$$$$$$   \$$$$$$  \$$$$$$$$ \$$    \$$   \$$       \$$$$$$$  \$$  \$$$$$$$ \$$      
-                                                                                       
-                                                                                       
-                                                                                       
-____
-</pre>
-            <div class="section-rule">---</div>
-            <h1 class="section-title">2. Indexed artifacts</h1>
-            <div class="toolbar">
-                <button id="btn-refresh-artifacts" class="btn btn-secondary">Refresh</button>
-                <button id="btn-reindex" class="btn btn-primary">Re-index all</button>
-            </div>
-            <table id="artifacts-table">
-                <thead>
-                    <tr>
-                        <th>type</th>
-                        <th>path</th>
-                        <th>source</th>
-                        <th>size</th>
-                        <th>sha256</th>
-                    </tr>
-                </thead>
-                <tbody id="artifacts-body">
-                    <tr><td colspan="5" class="empty">No artifacts indexed</td></tr>
-                </tbody>
-            </table>
         </section>
     </main>
 

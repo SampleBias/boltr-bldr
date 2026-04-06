@@ -373,7 +373,10 @@ async function loadArtifacts() {
     }
 }
 
-document.getElementById('btn-refresh-artifacts').addEventListener('click', loadArtifacts);
+document.getElementById('btn-refresh-artifacts').addEventListener('click', async () => {
+    await loadArtifacts();
+    await loadDashboard();
+});
 
 document.getElementById('btn-reindex').addEventListener('click', async () => {
     const btn = document.getElementById('btn-reindex');
@@ -382,8 +385,9 @@ document.getElementById('btn-reindex').addEventListener('click', async () => {
 
     try {
         const resp = await apiPost('/api/index', {});
-        showResult('artifacts-table', resp);
+        showResult('artifacts-reindex-result', resp);
         await loadArtifacts();
+        await loadDashboard();
     } catch (e) {
         console.error(e);
     } finally {
