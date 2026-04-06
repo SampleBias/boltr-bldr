@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Launch Boltr Bldr WebUI from the repository root (required for static assets).
+set -euo pipefail
+cd "$(dirname "$0")"
+exec cargo run -p boltr-web -- "$@"
