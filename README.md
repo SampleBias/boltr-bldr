@@ -17,7 +17,7 @@ ___
 ____
 ```
 
-An all-Rust tool that ingests protein data from **RCSB PDB** and **UniProt**, normalizes it, and emits **Boltr-compatible YAML** input files. Supports packaging and indexing of associated artifacts (`manifest.json`, NPZ result files). YAML is the canonical input format.
+A **Rust** workspace (shared `boltr-core`, `boltr-cli`, `boltr-web` server) that ingests protein data from **RCSB PDB** and **UniProt**, normalizes it, and emits **Boltr-compatible YAML** input files. Supports packaging and indexing of associated artifacts (`manifest.json`, NPZ result files). YAML is the canonical input format. The WebUI is served by Axum and rendered with vanilla HTML/CSS/JS in the browser.
 
 ## Dual Interface
 
@@ -33,6 +33,9 @@ Both interfaces expose the **exact same core features** through the shared `bolt
 ```
 boltr-bldr/
 ├── Cargo.toml              # Workspace root
+├── Boltr_bldr_go           # Start WebUI: ./Boltr_bldr_go (runs from repo root)
+├── docs/                   # Project notes
+├── tasks/                  # Task tracking
 ├── crates/
 │   ├── boltr-core/         # Shared business logic (no UI)
 │   │   ├── error.rs        # Error types (thiserror)
@@ -70,9 +73,10 @@ cargo run --bin boltr-cli -- pipeline --pdb 4HHB --uniprot P68871
 # CLI — Check status
 cargo run --bin boltr-cli -- status --verbose
 
-# WebUI — Start local web server
-cargo run --bin boltr-web -- --port 8081
-# Open http://localhost:8081
+# WebUI — Start local web server (from repository root)
+./Boltr_bldr_go
+# Or: cargo run -p boltr-web -- --port 8081
+# Open http://127.0.0.1:8081 (default port)
 ```
 
 ## CLI Subcommands
@@ -126,6 +130,10 @@ Environment variables (also available as CLI flags):
 | `BOLTR_WEB_PORT` | `8081` | WebUI port |
 | `BOLTR_WEB_HOST` | `127.0.0.1` | WebUI bind address |
 
+## GitHub
+
+Source code and issue tracking: **[github.com/SampleBias/boltr-bldr](https://github.com/SampleBias/boltr-bldr)**
+
 ## License
 
-MIT
+[MIT](LICENSE)
