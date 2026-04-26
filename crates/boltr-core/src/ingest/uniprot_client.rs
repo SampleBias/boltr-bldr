@@ -7,6 +7,7 @@ use crate::error::{Error, Result};
 use crate::models::uniprot::*;
 
 /// Client for the UniProt REST API
+#[derive(Clone)]
 pub struct UniProtClient {
     client: reqwest::Client,
     base_url: String,
@@ -17,6 +18,7 @@ impl UniProtClient {
     pub fn new() -> Result<Self> {
         let client = reqwest::Client::builder()
             .user_agent("boltr-bldr/0.1.0")
+            .timeout(std::time::Duration::from_secs(30))
             .build()?;
 
         Ok(Self {
@@ -59,34 +61,25 @@ impl UniProtClient {
             .unwrap_or("Unknown")
             .to_string();
 
-        let taxonomy_id = json["organism"]["taxonId"]
-            .as_u64()
-            .map(|v| v as u32);
+        let taxonomy_id = json["organism"]["taxonId"].as_u64().map(|v| v as u32);
 
         let gene_names = json["genes"]
             .as_array()
             .map(|genes| {
                 genes
                     .iter()
-                    .filter_map(|g| {
-                        g["geneName"]["value"].as_str().map(|s| s.to_string())
-                    })
+                    .filter_map(|g| g["geneName"]["value"].as_str().map(|s| s.to_string()))
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
 
-        let sequence = json["sequence"]["value"]
-            .as_str()
-            .unwrap_or("")
-            .to_string();
+        let sequence = json["sequence"]["value"].as_str().unwrap_or("").to_string();
 
         let sequence_length = json["sequence"]["length"]
             .as_u64()
             .unwrap_or(sequence.len() as u64) as u32;
 
-        let molecular_weight = json["sequence"]["molWeight"]
-            .as_u64()
-            .map(|v| v as u32);
+        let molecular_weight = json["sequence"]["molWeight"].as_u64().map(|v| v as u32);
 
         let ec_numbers = json["proteinDescription"]["ecNumbers"]
             .as_array()
@@ -137,9 +130,7 @@ impl UniProtClient {
                 arr.iter()
                     .map(|f| UniProtFeature {
                         feature_type: f["type"].as_str().unwrap_or("").to_string(),
-                        description: f["description"]["value"]
-                            .as_str()
-                            .map(|s| s.to_string()),
+                        description: f["description"]["value"].as_str().map(|s| s.to_string()),
                         begin: f["location"]["start"]["value"].as_u64().map(|v| v as u32),
                         end: f["location"]["end"]["value"].as_u64().map(|v| v as u32),
                     })

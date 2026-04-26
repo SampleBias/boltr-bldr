@@ -15,7 +15,7 @@ document.querySelectorAll('.nav-links a').forEach(link => {
 
 async function apiGet(path) {
     const resp = await fetch(`${API}${path}`);
-    return resp.json();
+    return parseApiResponse(resp);
 }
 
 async function apiPost(path, body = {}) {
@@ -24,7 +24,26 @@ async function apiPost(path, body = {}) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
-    return resp.json();
+    return parseApiResponse(resp);
+}
+
+async function parseApiResponse(resp) {
+    const text = await resp.text();
+    let payload = null;
+    if (text) {
+        try {
+            payload = JSON.parse(text);
+        } catch {
+            payload = { success: false, error: text };
+        }
+    }
+
+    if (!resp.ok) {
+        const message = payload && payload.error ? payload.error : `${resp.status} ${resp.statusText}`;
+        throw new Error(message);
+    }
+
+    return payload || { success: true, data: null };
 }
 
 function showResult(elId, data, isError = false) {
@@ -62,12 +81,10 @@ async function loadDashboard() {
             const sizeMB = ((stats.total_size_bytes || 0) / 1048576).toFixed(2);
             document.getElementById('stat-size').textContent = `${sizeMB} MB`;
 
-            document.getElementById('status-bar').innerHTML =
-                `<span class="status-dot"></span> ok — data_dir: ${resp.data.data_dir || 'data'}`;
+            document.getElementById('status-bar').textContent = `ok - data_dir: ${resp.data.data_dir || 'data'}`;
         }
     } catch (e) {
-        document.getElementById('status-bar').innerHTML =
-            `<span class="status-dot" style="background:var(--error)"></span> error: ${e.message}`;
+        document.getElementById('status-bar').textContent = `error: ${e.message}`;
     }
 }
 
@@ -149,7 +166,7 @@ function wireEntityFileUpload(row) {
         fd.append('file', f);
         try {
             const resp = await fetch(`${API}/api/upload-structure`, { method: 'POST', body: fd });
-            const json = await resp.json();
+            const json = await parseApiResponse(resp);
             if (json.success && json.data && json.data.path) {
                 const p = json.data.path;
                 const lower = f.name.toLowerCase();
@@ -352,7 +369,7 @@ document.getElementById('btn-emit').addEventListener('click', async () => {
 
 async function loadArtifacts() {
     try {
-        const resp = await apiGet('/api/artifacts');
+        const resp = await apiGet('/api/artifacts?limit=100&offset=0');
         const tbody = document.getElementById('artifacts-body');
 
         if (resp.success && resp.data && resp.data.artifacts && resp.data.artifacts.length > 0) {
@@ -373,8 +390,37 @@ async function loadArtifacts() {
     }
 }
 
+async function loadPackages() {
+    try {
+        const resp = await apiGet('/api/packages');
+        const tbody = document.getElementById('packages-body');
+
+        if (resp.success && resp.data && resp.data.packages && resp.data.packages.length > 0) {
+            tbody.innerHTML = resp.data.packages.map(p => `
+                <tr>
+                    <td class="mono">${esc(p.package_id)}</td>
+                    <td>${p.file_count}</td>
+                    <td>${formatBytes(p.total_size)}</td>
+                    <td>${esc(formatDate(p.created_at))}</td>
+                    <td>${esc((p.tags || []).join(', ') || '-')}</td>
+                </tr>
+            `).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="empty">No packages found</td></tr>';
+        }
+    } catch (e) {
+        const tbody = document.getElementById('packages-body');
+        tbody.innerHTML = `<tr><td colspan="5" class="empty">Failed to load packages: ${esc(e.message)}</td></tr>`;
+    }
+}
+
 document.getElementById('btn-refresh-artifacts').addEventListener('click', async () => {
     await loadArtifacts();
+    await loadDashboard();
+});
+
+document.getElementById('btn-refresh-packages').addEventListener('click', async () => {
+    await loadPackages();
     await loadDashboard();
 });
 
@@ -387,6 +433,7 @@ document.getElementById('btn-reindex').addEventListener('click', async () => {
         const resp = await apiPost('/api/index', {});
         showResult('artifacts-reindex-result', resp);
         await loadArtifacts();
+        await loadPackages();
         await loadDashboard();
     } catch (e) {
         console.error(e);
@@ -399,9 +446,13 @@ document.getElementById('btn-reindex').addEventListener('click', async () => {
 // ── Utilities ─────────────────────────────────────────────────────────
 
 function esc(str) {
-    const div = document.createElement('div');
-    div.textContent = str || '';
-    return div.innerHTML;
+    return String(str || '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+    }[ch]));
 }
 
 function formatBytes(bytes) {
@@ -412,6 +463,13 @@ function formatBytes(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
+function formatDate(value) {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString();
+}
+
 // ── Init ──────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -420,4 +478,5 @@ document.addEventListener('DOMContentLoaded', () => {
     initEntityDragDrop(er);
     loadDashboard();
     loadArtifacts();
+    loadPackages();
 });

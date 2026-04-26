@@ -7,6 +7,20 @@ use std::path::{Path, PathBuf};
 use crate::error::{Error, Result};
 use crate::models::artifact::*;
 
+pub type AtomSite<'a> = (
+    u32,
+    &'a str,
+    &'a str,
+    i32,
+    &'a str,
+    f64,
+    f64,
+    f64,
+    Option<f64>,
+    Option<f64>,
+    Option<&'a str>,
+);
+
 /// Manages artifact packaging operations
 pub struct ArtifactManager {
     /// Base directory for packages
@@ -76,7 +90,9 @@ impl ArtifactManager {
     pub fn write_manifest(&self, manifest: &Manifest) -> Result<PathBuf> {
         std::fs::create_dir_all(&self.packages_dir)?;
 
-        let manifest_path = self.packages_dir.join(format!("{}_manifest.json", manifest.package_id));
+        let manifest_path = self
+            .packages_dir
+            .join(format!("{}_manifest.json", manifest.package_id));
         let json = serde_json::to_string_pretty(manifest)?;
         std::fs::write(&manifest_path, json)?;
 
@@ -102,8 +118,9 @@ impl ArtifactManager {
         let pkg_dir = self.packages_dir.join(package_id);
         std::fs::create_dir_all(&pkg_dir)?;
 
-        // Collect files from source directory
-        let mut files_to_package = Vec::new();
+        // Copy files and hash each stream once to avoid rereading package contents.
+        let mut manifest_files = Vec::new();
+        let mut total_size: u64 = 0;
         for entry in walkdir::WalkDir::new(source_dir)
             .into_iter()
             .filter_map(|e| e.ok())
@@ -112,15 +129,31 @@ impl ArtifactManager {
                 let src_path = entry.path().to_path_buf();
                 let file_name = entry.file_name().to_string_lossy().to_string();
                 let dest_path = pkg_dir.join(&file_name);
+                let (sha256, size_bytes) = copy_file_with_sha256(&src_path, &dest_path)?;
 
-                std::fs::copy(&src_path, &dest_path)?;
-                files_to_package.push(dest_path);
+                total_size += size_bytes;
+                manifest_files.push(ManifestFile {
+                    path: file_name,
+                    file_type: detect_file_type(&dest_path),
+                    sha256,
+                    size_bytes,
+                    description: None,
+                });
             }
         }
 
-        // Create manifest
         let sources = Vec::new(); // Sources would be populated from context
-        let mut manifest = self.create_manifest(package_id, sources, files_to_package, description, tags)?;
+        let mut manifest = Manifest {
+            version: "1.0.0".to_string(),
+            package_id: package_id.to_string(),
+            created_at: chrono::Utc::now(),
+            sources,
+            files: manifest_files,
+            total_size_bytes: total_size,
+            pipeline_version: env!("CARGO_PKG_VERSION").to_string(),
+            tags,
+            description,
+        };
 
         // Write manifest into the package directory
         let manifest_path = pkg_dir.join("manifest.json");
@@ -216,7 +249,7 @@ impl ArtifactManager {
         title: &str,
         method: &str,
         resolution: Option<f64>,
-        atoms: &[(u32, &str, &str, i32, &str, f64, f64, f64, Option<f64>, Option<f64>, Option<&str>)],
+        atoms: &[AtomSite<'_>],
     ) -> Result<PathBuf> {
         if let Some(parent) = output_path.parent() {
             std::fs::create_dir_all(parent)?;
@@ -264,7 +297,9 @@ impl ArtifactManager {
             cif.push_str("_atom_site.B_iso_or_equiv\n");
             cif.push_str("_atom_site.type_symbol\n");
 
-            for (serial, atom_name, res_name, res_seq, chain_id, x, y, z, occ, b_factor, element) in atoms {
+            for (serial, atom_name, res_name, res_seq, chain_id, x, y, z, occ, b_factor, element) in
+                atoms
+            {
                 cif.push_str(&format!(
                     "ATOM {} {} {} {} {} {:.3} {:.3} {:.3} {} {} {}\n",
                     serial,
@@ -275,8 +310,11 @@ impl ArtifactManager {
                     x,
                     y,
                     z,
-                    occ.map(|v| format!("{:.2}", v)).unwrap_or_else(|| ".".to_string()),
-                    b_factor.map(|v| format!("{:.2}", v)).unwrap_or_else(|| ".".to_string()),
+                    occ.map(|v| format!("{:.2}", v))
+                        .unwrap_or_else(|| ".".to_string()),
+                    b_factor
+                        .map(|v| format!("{:.2}", v))
+                        .unwrap_or_else(|| ".".to_string()),
                     element.unwrap_or("?"),
                 ));
             }
@@ -360,7 +398,10 @@ impl ArtifactManager {
                     let sha = file_sha256(&path);
                     let size = file_size(&path);
                     scan.json_files.push(GenericArtifactInfo {
-                        filename: path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(),
+                        filename: path
+                            .file_name()
+                            .map(|n| n.to_string_lossy().to_string())
+                            .unwrap_or_default(),
                         sha256: sha,
                         size_bytes: size,
                     });
@@ -374,7 +415,10 @@ impl ArtifactManager {
                     let sha = file_sha256(&path);
                     let size = file_size(&path);
                     scan.other_files.push(GenericArtifactInfo {
-                        filename: path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(),
+                        filename: path
+                            .file_name()
+                            .map(|n| n.to_string_lossy().to_string())
+                            .unwrap_or_default(),
                         sha256: sha,
                         size_bytes: size,
                     });
@@ -458,10 +502,7 @@ fn extract_cif_value(line: &str) -> String {
         }
     }
     // Fallback: split on whitespace and take last token
-    line.split_whitespace()
-        .last()
-        .unwrap_or("")
-        .to_string()
+    line.split_whitespace().last().unwrap_or("").to_string()
 }
 
 fn file_sha256(path: &Path) -> String {
@@ -493,6 +534,29 @@ fn detect_file_type(path: &Path) -> String {
     }
 }
 
+fn copy_file_with_sha256(src: &Path, dest: &Path) -> Result<(String, u64)> {
+    use sha2::{Digest, Sha256};
+    use std::io::{Read, Write};
+
+    let mut input = std::fs::File::open(src)?;
+    let mut output = std::fs::File::create(dest)?;
+    let mut hasher = Sha256::new();
+    let mut size_bytes = 0_u64;
+    let mut buffer = [0_u8; 64 * 1024];
+
+    loop {
+        let read = input.read(&mut buffer)?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+        output.write_all(&buffer[..read])?;
+        size_bytes += read as u64;
+    }
+
+    Ok((hex::encode(hasher.finalize()), size_bytes))
+}
+
 /// Compute SHA-256 hash of bytes
 fn compute_sha256_bytes(data: &[u8]) -> String {
     use sha2::{Digest, Sha256};
@@ -518,9 +582,15 @@ mod tests {
 
     #[test]
     fn test_extract_cif_value() {
-        assert_eq!(extract_cif_value("_struct.title 'Hello World'"), "Hello World");
+        assert_eq!(
+            extract_cif_value("_struct.title 'Hello World'"),
+            "Hello World"
+        );
         assert_eq!(extract_cif_value("_entry.id 1ABC"), "1ABC");
-        assert_eq!(extract_cif_value("_exptl.method 'X-RAY DIFFRACTION'"), "X-RAY DIFFRACTION");
+        assert_eq!(
+            extract_cif_value("_exptl.method 'X-RAY DIFFRACTION'"),
+            "X-RAY DIFFRACTION"
+        );
     }
 
     #[test]
@@ -529,12 +599,49 @@ mod tests {
         let _ = std::fs::create_dir_all(&dir);
         let path = dir.join("test.cif");
 
-        let atoms: Vec<(u32, &str, &str, i32, &str, f64, f64, f64, Option<f64>, Option<f64>, Option<&str>)> = vec![
-            (1, "CA", "ALA", 1, "A", 10.0, 20.0, 30.0, Some(1.0), Some(20.0), Some("C")),
-            (2, "N",  "ALA", 1, "A", 11.0, 21.0, 31.0, Some(1.0), Some(15.0), Some("N")),
+        let atoms: Vec<(
+            u32,
+            &str,
+            &str,
+            i32,
+            &str,
+            f64,
+            f64,
+            f64,
+            Option<f64>,
+            Option<f64>,
+            Option<&str>,
+        )> = vec![
+            (
+                1,
+                "CA",
+                "ALA",
+                1,
+                "A",
+                10.0,
+                20.0,
+                30.0,
+                Some(1.0),
+                Some(20.0),
+                Some("C"),
+            ),
+            (
+                2,
+                "N",
+                "ALA",
+                1,
+                "A",
+                11.0,
+                21.0,
+                31.0,
+                Some(1.0),
+                Some(15.0),
+                Some("N"),
+            ),
         ];
 
-        let result = ArtifactManager::write_cif(&path, "1ABC", "Test Structure", "X-RAY", Some(1.5), &atoms);
+        let result =
+            ArtifactManager::write_cif(&path, "1ABC", "Test Structure", "X-RAY", Some(1.5), &atoms);
         assert!(result.is_ok());
 
         let content = std::fs::read_to_string(&path).unwrap();

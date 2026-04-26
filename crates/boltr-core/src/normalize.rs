@@ -29,6 +29,12 @@ impl NormalizedRecord {
     }
 }
 
+impl Default for NormalizedRecord {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Normalize a PDB entry into a NormalizedRecord
 pub fn normalize_pdb(entry: PdbEntry) -> Result<NormalizedRecord> {
     tracing::info!(pdb_id = %entry.id, "Normalizing PDB entry");
@@ -64,7 +70,10 @@ pub fn normalize_uniprot(entry: UniProtEntry) -> Result<NormalizedRecord> {
 }
 
 /// Merge a PDB-derived and UniProt-derived record into a single normalized record
-pub fn normalize_merged(pdb_entry: PdbEntry, uniprot_entry: UniProtEntry) -> Result<NormalizedRecord> {
+pub fn normalize_merged(
+    pdb_entry: PdbEntry,
+    uniprot_entry: UniProtEntry,
+) -> Result<NormalizedRecord> {
     tracing::info!(
         pdb_id = %pdb_entry.id,
         accession = %uniprot_entry.accession,
@@ -136,7 +145,9 @@ pub fn validate_record(record: &NormalizedRecord) -> Result<()> {
 
     if let Some(ref uniprot) = record.uniprot {
         if uniprot.accession.is_empty() {
-            return Err(Error::Validation("UniProt entry has empty accession".into()));
+            return Err(Error::Validation(
+                "UniProt entry has empty accession".into(),
+            ));
         }
     }
 

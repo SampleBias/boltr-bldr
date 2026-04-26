@@ -1,19 +1,19 @@
 //! Data models for protein data ingestion, normalization, and Boltr YAML output
 
+pub mod af3_input;
+pub mod artifact;
+pub mod boltr;
 pub mod pdb;
 pub mod uniprot;
-pub mod af3_input;
-pub mod boltr;
-pub mod artifact;
 
-pub use pdb::*;
-pub use uniprot::*;
-pub use boltr::*;
 pub use af3_input::{
     Af3Dna, Af3Id, Af3Ligand, Af3Protein, Af3Rna, Af3Template, Alphafold3Job, BuilderEntity,
     BuilderEntityKind, SequenceEntry,
 };
 pub use artifact::*;
+pub use boltr::*;
+pub use pdb::*;
+pub use uniprot::*;
 
 use serde::{Deserialize, Serialize};
 
@@ -28,11 +28,17 @@ pub struct SourceId {
 
 impl SourceId {
     pub fn pdb(id: impl Into<String>) -> Self {
-        Self { source: "pdb".into(), id: id.into() }
+        Self {
+            source: "pdb".into(),
+            id: id.into(),
+        }
     }
 
     pub fn uniprot(id: impl Into<String>) -> Self {
-        Self { source: "uniprot".into(), id: id.into() }
+        Self {
+            source: "uniprot".into(),
+            id: id.into(),
+        }
     }
 }
 

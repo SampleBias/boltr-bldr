@@ -129,6 +129,7 @@ Environment variables (also available as CLI flags):
 | `BOLTR_LOG_LEVEL` | `info` | Log level (trace/debug/info/warn/error) |
 | `BOLTR_WEB_PORT` | `8081` | WebUI port |
 | `BOLTR_WEB_HOST` | `127.0.0.1` | WebUI bind address |
+| `BOLTR_WEB_ALLOW_REMOTE` | unset | Must be `true` to bind the WebUI to a non-loopback host |
 
 ## GitHub
 

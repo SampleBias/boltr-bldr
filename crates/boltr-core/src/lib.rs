@@ -6,12 +6,13 @@
 //! - Emitting Boltr-compatible YAML
 //! - Packaging and indexing artifacts (manifest.json, NPZ)
 
-pub mod error;
-pub mod models;
-pub mod ingest;
-pub mod normalize;
-pub mod emit;
 pub mod artifact;
+pub mod emit;
+pub mod error;
+pub mod ingest;
+pub mod models;
+pub mod normalize;
+pub mod pipeline;
 pub mod store;
 
-pub use error::{Result, Error};
+pub use error::{Error, Result};

@@ -8,12 +8,20 @@ use std::path::PathBuf;
 use clap::{Parser, Subcommand};
 use tracing_subscriber::EnvFilter;
 
+const NORMALIZED_RECORDS_FILE: &str = "full_normalized.json";
+const LEGACY_NORMALIZED_RECORDS_FILE: &str = "full_normalized.bincode";
+
 #[derive(Parser)]
 #[command(name = "boltr-bldr")]
-#[command(version, about = "Boltr Bldr — ingest, normalize & emit Boltr-compatible YAML from protein data")]
-#[command(long_about = "An all-Rust tool that ingests protein data from RCSB PDB and UniProt, \
+#[command(
+    version,
+    about = "Boltr Bldr — ingest, normalize & emit Boltr-compatible YAML from protein data"
+)]
+#[command(
+    long_about = "An all-Rust tool that ingests protein data from RCSB PDB and UniProt, \
     normalizes it, and emits Boltr-compatible YAML input files. Also supports packaging and \
-    indexing of artifacts (manifest.json, NPZ result files). YAML is the canonical input format.")]
+    indexing of artifacts (manifest.json, NPZ result files). YAML is the canonical input format."
+)]
 struct Cli {
     /// Base data directory
     #[arg(long, global = true, default_value = "data", env = "BOLTR_DATA_DIR")]
@@ -153,8 +161,7 @@ async fn main() -> anyhow::Result<()> {
     // Initialize tracing
     tracing_subscriber::fmt()
         .with_env_filter(
-            EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| EnvFilter::new(&cli.log_level)),
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&cli.log_level)),
         )
         .init();
 
@@ -189,7 +196,10 @@ async fn main() -> anyhow::Result<()> {
             run_package(&cli.data_dir, &input, &output, description, &tags)?;
         }
 
-        Commands::Index { rebuild, package_dir } => {
+        Commands::Index {
+            rebuild,
+            package_dir,
+        } => {
             run_index(&cli.data_dir, rebuild, package_dir.as_deref())?;
         }
 
@@ -207,7 +217,12 @@ async fn main() -> anyhow::Result<()> {
             file_type,
             source,
         } => {
-            run_status(&cli.data_dir, verbose, file_type.as_deref(), source.as_deref())?;
+            run_status(
+                &cli.data_dir,
+                verbose,
+                file_type.as_deref(),
+                source.as_deref(),
+            )?;
         }
 
         Commands::List { format } => {
@@ -226,12 +241,28 @@ async fn run_ingest(
     save_raw: bool,
 ) -> anyhow::Result<()> {
     if pdb_ids.is_empty() && uniprot_accessions.is_empty() {
-        anyhow::bail!("No sources specified. Use --pdb and/or --uniprot to specify entries to ingest.");
+        anyhow::bail!(
+            "No sources specified. Use --pdb and/or --uniprot to specify entries to ingest."
+        );
     }
 
     println!("🔬 Ingesting protein data...");
-    println!("   PDB IDs: {}", if pdb_ids.is_empty() { "(none)".into() } else { pdb_ids.join(", ") });
-    println!("   UniProt: {}", if uniprot_accessions.is_empty() { "(none)".into() } else { uniprot_accessions.join(", ") });
+    println!(
+        "   PDB IDs: {}",
+        if pdb_ids.is_empty() {
+            "(none)".into()
+        } else {
+            pdb_ids.join(", ")
+        }
+    );
+    println!(
+        "   UniProt: {}",
+        if uniprot_accessions.is_empty() {
+            "(none)".into()
+        } else {
+            uniprot_accessions.join(", ")
+        }
+    );
 
     let result = boltr_core::ingest::ingest_sources(pdb_ids, uniprot_accessions).await?;
 
@@ -250,7 +281,8 @@ async fn run_ingest(
         }
         for entry in &result.uniprot_entries {
             if let Some(ref raw) = entry.raw_json {
-                let path = output_dir.join(format!("uniprot_{}.json", entry.accession.to_lowercase()));
+                let path =
+                    output_dir.join(format!("uniprot_{}.json", entry.accession.to_lowercase()));
                 let json = serde_json::to_string_pretty(raw)?;
                 std::fs::write(&path, json)?;
                 println!("   📄 Saved: {}", path.display());
@@ -265,7 +297,10 @@ async fn run_ingest(
         std::fs::write(&path, json)?;
     }
     for entry in &result.uniprot_entries {
-        let path = output_dir.join(format!("parsed_uniprot_{}.json", entry.accession.to_lowercase()));
+        let path = output_dir.join(format!(
+            "parsed_uniprot_{}.json",
+            entry.accession.to_lowercase()
+        ));
         let json = serde_json::to_string_pretty(entry)?;
         std::fs::write(&path, json)?;
     }
@@ -279,7 +314,12 @@ async fn run_ingest(
         store.update_pipeline_state("uniprot", &entry.accession, "ingested", None)?;
     }
 
-    println!("✅ Ingested {} entries ({} PDB, {} UniProt)", result.total_count(), result.pdb_entries.len(), result.uniprot_entries.len());
+    println!(
+        "✅ Ingested {} entries ({} PDB, {} UniProt)",
+        result.total_count(),
+        result.pdb_entries.len(),
+        result.uniprot_entries.len()
+    );
     Ok(())
 }
 
@@ -301,7 +341,11 @@ async fn run_normalize(
     for entry in std::fs::read_dir(&input_dir)? {
         let entry = entry?;
         let path = entry.path();
-        let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        let name = path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
 
         let content = std::fs::read_to_string(&path)?;
         let json: serde_json::Value = serde_json::from_str(&content)?;
@@ -316,7 +360,10 @@ async fn run_normalize(
     }
 
     if pdb_entries.is_empty() && uniprot_entries.is_empty() {
-        anyhow::bail!("No parsed entries found in {}. Run `ingest` first.", input_dir.display());
+        anyhow::bail!(
+            "No parsed entries found in {}. Run `ingest` first.",
+            input_dir.display()
+        );
     }
 
     let records = boltr_core::normalize::normalize_batch(pdb_entries, uniprot_entries)?;
@@ -351,11 +398,15 @@ async fn run_normalize(
     std::fs::write(&all_records_path, records_json)?;
 
     // Save raw normalized data for emit step
-    let full_path = output_dir.join("full_normalized.bincode");
+    let full_path = output_dir.join(NORMALIZED_RECORDS_FILE);
     let encoded = serde_json::to_vec(&records)?;
     std::fs::write(&full_path, encoded)?;
 
-    println!("✅ Normalized {} records → {}", records.len(), output_dir.display());
+    println!(
+        "✅ Normalized {} records → {}",
+        records.len(),
+        output_dir.display()
+    );
     Ok(())
 }
 
@@ -371,13 +422,7 @@ fn run_emit(
     let output_dir = data_dir.join(output);
 
     // Load normalized records
-    let full_path = input_dir.join("full_normalized.bincode");
-    if !full_path.exists() {
-        anyhow::bail!("No normalized data found. Run `normalize` first.");
-    }
-
-    let encoded = std::fs::read(&full_path)?;
-    let records: Vec<boltr_core::normalize::NormalizedRecord> = serde_json::from_slice(&encoded)?;
+    let records = read_normalized_records(&input_dir)?;
 
     let opts = boltr_core::emit::EmitOptions {
         output_dir: output_dir.clone(),
@@ -391,8 +436,30 @@ fn run_emit(
         println!("   📄 {}", file.path.display());
     }
 
-    println!("✅ Emitted {} Boltr YAML files → {}", emitted.len(), output_dir.display());
+    println!(
+        "✅ Emitted {} Boltr YAML files → {}",
+        emitted.len(),
+        output_dir.display()
+    );
     Ok(())
+}
+
+fn read_normalized_records(
+    input_dir: &std::path::Path,
+) -> anyhow::Result<Vec<boltr_core::normalize::NormalizedRecord>> {
+    let json_path = input_dir.join(NORMALIZED_RECORDS_FILE);
+    let legacy_path = input_dir.join(LEGACY_NORMALIZED_RECORDS_FILE);
+    let selected = if json_path.exists() {
+        json_path
+    } else if legacy_path.exists() {
+        legacy_path
+    } else {
+        anyhow::bail!("No normalized data found. Run `normalize` first.");
+    };
+
+    let encoded = std::fs::read(&selected)?;
+    let records = serde_json::from_slice(&encoded)?;
+    Ok(records)
 }
 
 fn run_package(
@@ -410,12 +477,8 @@ fn run_package(
     let package_id = uuid::Uuid::new_v4().to_string()[..8].to_string();
 
     let manager = boltr_core::artifact::ArtifactManager::new(&output_dir);
-    let (pkg_path, manifest) = manager.package(
-        &package_id,
-        &input_dir,
-        description,
-        tags.to_vec(),
-    )?;
+    let (pkg_path, manifest) =
+        manager.package(&package_id, &input_dir, description, tags.to_vec())?;
 
     println!("   📦 Package: {}", pkg_path.display());
     println!("   📄 Files: {}", manifest.files.len());
@@ -449,11 +512,18 @@ fn run_index(
     for manifest in &packages {
         let pkg_path = packages_dir.join(&manifest.package_id);
         store.index_manifest(manifest, &pkg_path)?;
-        println!("   📦 Indexed package: {} ({} files)", manifest.package_id, manifest.files.len());
+        println!(
+            "   📦 Indexed package: {} ({} files)",
+            manifest.package_id,
+            manifest.files.len()
+        );
     }
 
     let stats = store.stats()?;
-    println!("✅ Index updated: {} artifacts, {} packages", stats.total_artifacts, stats.total_packages);
+    println!(
+        "✅ Index updated: {} artifacts, {} packages",
+        stats.total_artifacts, stats.total_packages
+    );
     Ok(())
 }
 
@@ -465,58 +535,70 @@ async fn run_pipeline(
     do_index: bool,
 ) -> anyhow::Result<()> {
     println!("🚀 Running full pipeline...");
-    println!("   PDB: {}", if pdb_ids.is_empty() { "(none)".into() } else { pdb_ids.join(", ") });
-    println!("   UniProt: {}", if uniprot_accessions.is_empty() { "(none)".into() } else { uniprot_accessions.join(", ") });
+    println!(
+        "   PDB: {}",
+        if pdb_ids.is_empty() {
+            "(none)".into()
+        } else {
+            pdb_ids.join(", ")
+        }
+    );
+    println!(
+        "   UniProt: {}",
+        if uniprot_accessions.is_empty() {
+            "(none)".into()
+        } else {
+            uniprot_accessions.join(", ")
+        }
+    );
 
-    // Step 1: Ingest
     println!("\n📥 Step 1: Ingest");
-    let ingest_result = boltr_core::ingest::ingest_sources(pdb_ids, uniprot_accessions).await?;
-    println!("   Ingested {} entries", ingest_result.total_count());
-
-    // Step 2: Normalize
     println!("\n🔧 Step 2: Normalize");
-    let records = boltr_core::normalize::normalize_batch(
-        ingest_result.pdb_entries,
-        ingest_result.uniprot_entries,
-    )?;
-    println!("   Normalized {} records", records.len());
-
-    // Step 3: Emit
     println!("\n📝 Step 3: Emit YAML");
-    let output_dir = data_dir.join(output);
-    let emit_opts = boltr_core::emit::EmitOptions {
-        output_dir: output_dir.clone(),
-        version: "1.0.0".to_string(),
-        include_raw: false,
-    };
-    let emitted = boltr_core::emit::emit_batch(&records, &emit_opts)?;
-    println!("   Emitted {} YAML files", emitted.len());
-
-    // Step 4: Package
     println!("\n📦 Step 4: Package");
-    let packages_dir = data_dir.join("packages");
-    let package_id = uuid::Uuid::new_v4().to_string()[..8].to_string();
-    let manager = boltr_core::artifact::ArtifactManager::new(&packages_dir);
-    let (pkg_path, manifest) = manager.package(
-        &package_id,
-        &output_dir,
-        Some(format!("Pipeline run for PDB:{}/UniProt:{}", pdb_ids.join(","), uniprot_accessions.join(","))),
-        vec!["pipeline".to_string()],
-    )?;
-    println!("   Package: {} ({} files)", package_id, manifest.files.len());
-
-    // Step 5: Index
     if do_index {
         println!("\n🗂️  Step 5: Index");
-        let store = boltr_core::store::Store::open(data_dir)?;
-        store.index_manifest(&manifest, &pkg_path)?;
-        let stats = store.stats()?;
+    }
+
+    let result = boltr_core::pipeline::run(boltr_core::pipeline::PipelineOptions {
+        data_dir: data_dir.to_path_buf(),
+        output_dir: data_dir.join(output),
+        package_dir: data_dir.join("packages"),
+        pdb_ids: pdb_ids.to_vec(),
+        uniprot_accessions: uniprot_accessions.to_vec(),
+        version: "1.0.0".to_string(),
+        package_description: Some(format!(
+            "Pipeline run for PDB:{}/UniProt:{}",
+            pdb_ids.join(","),
+            uniprot_accessions.join(",")
+        )),
+        package_tags: vec!["pipeline".to_string()],
+        index: do_index,
+    })
+    .await?;
+
+    println!("   Normalized {} records", result.records_normalized);
+    println!("   Emitted {} YAML files", result.emitted.len());
+    println!(
+        "   Package: {} ({} files)",
+        result.package_id,
+        result.manifest.files.len()
+    );
+    if let Some(stats) = result.stats.as_ref() {
         println!("   Indexed: {} total artifacts", stats.total_artifacts);
     }
 
     println!("\n✅ Pipeline complete!");
-    println!("   YAML files: {}", emitted.iter().map(|f| f.path.display().to_string()).collect::<Vec<_>>().join(", "));
-    println!("   Package: {}", pkg_path.display());
+    println!(
+        "   YAML files: {}",
+        result
+            .emitted
+            .iter()
+            .map(|f| f.path.display().to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    println!("   Package: {}", result.package_path.display());
 
     Ok(())
 }
@@ -536,7 +618,11 @@ fn run_status(
     println!("   YAML files:      {}", stats.total_yaml);
     println!("   NPZ files:       {}", stats.total_npz);
     println!("   Packages:        {}", stats.total_packages);
-    println!("   Total size:      {} bytes ({:.2} MB)", stats.total_size_bytes, stats.total_size_bytes as f64 / 1_048_576.0);
+    println!(
+        "   Total size:      {} bytes ({:.2} MB)",
+        stats.total_size_bytes,
+        stats.total_size_bytes as f64 / 1_048_576.0
+    );
 
     if verbose || file_type.is_some() || source.is_some() {
         println!("\n📄 Artifacts:");
@@ -559,10 +645,7 @@ fn run_status(
         for artifact in &filtered {
             println!(
                 "   [{}] {} ({} bytes, {})",
-                artifact.file_type,
-                artifact.file_path,
-                artifact.size_bytes,
-                artifact.source_db
+                artifact.file_type, artifact.file_path, artifact.size_bytes, artifact.source_db
             );
             if verbose {
                 println!("      SHA256: {}...", &artifact.sha256[..32]);
@@ -594,7 +677,7 @@ fn run_list(data_dir: &std::path::Path, format: &str) -> anyhow::Result<()> {
         }
         _ => {
             println!("📦 Packages:");
-            println!("{:<12} {:<8} {:<12} {}", "ID", "Files", "Size", "Created");
+            println!("{:<12} {:<8} {:<12} Created", "ID", "Files", "Size");
             println!("─────────────────────────────────────────────────────");
             for pkg in &packages {
                 println!(

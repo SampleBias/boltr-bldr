@@ -10,11 +10,28 @@ use rusqlite::{params, Connection};
 use crate::error::{Error, Result};
 use crate::models::artifact::*;
 
+fn parse_sqlite_datetime(s: String) -> chrono::DateTime<chrono::Utc> {
+    chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S")
+        .map(|dt| dt.and_utc())
+        .or_else(|_| chrono::DateTime::parse_from_rfc3339(&s).map(|dt| dt.to_utc()))
+        .unwrap_or_else(|_| chrono::Utc::now())
+}
+
 /// The local artifact store backed by SQLite
 pub struct Store {
     conn: Connection,
     #[allow(dead_code)]
     data_dir: PathBuf,
+}
+
+pub struct ArtifactIndex<'a> {
+    pub package_id: &'a str,
+    pub file_path: &'a str,
+    pub file_type: &'a str,
+    pub sha256: &'a str,
+    pub size_bytes: u64,
+    pub source_db: &'a str,
+    pub source_id: &'a str,
 }
 
 impl Store {
@@ -83,21 +100,20 @@ impl Store {
     }
 
     /// Index a single artifact file
-    pub fn index_artifact(
-        &self,
-        package_id: &str,
-        file_path: &str,
-        file_type: &str,
-        sha256: &str,
-        size_bytes: u64,
-        source_db: &str,
-        source_id: &str,
-    ) -> Result<i64> {
+    pub fn index_artifact(&self, artifact: ArtifactIndex<'_>) -> Result<i64> {
         self.conn
             .execute(
                 "INSERT OR REPLACE INTO artifacts (package_id, file_path, file_type, sha256, size_bytes, source_db, source_id)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                params![package_id, file_path, file_type, sha256, size_bytes as i64, source_db, source_id],
+                params![
+                    artifact.package_id,
+                    artifact.file_path,
+                    artifact.file_type,
+                    artifact.sha256,
+                    artifact.size_bytes as i64,
+                    artifact.source_db,
+                    artifact.source_id
+                ],
             )
             .map_err(|e| Error::Store(format!("Insert artifact failed: {}", e)))?;
 
@@ -119,15 +135,15 @@ impl Store {
             let full_path = pkg_dir.join(&file.path);
             let path_str = full_path.to_string_lossy();
 
-            let row_id = self.index_artifact(
-                &manifest.package_id,
-                &path_str,
-                &file.file_type,
-                &file.sha256,
-                file.size_bytes,
+            let row_id = self.index_artifact(ArtifactIndex {
+                package_id: &manifest.package_id,
+                file_path: &path_str,
+                file_type: &file.file_type,
+                sha256: &file.sha256,
+                size_bytes: file.size_bytes,
                 source_db,
                 source_id,
-            )?;
+            })?;
 
             row_ids.push(row_id);
         }
@@ -157,12 +173,7 @@ impl Store {
                     file_type: row.get(3)?,
                     sha256: row.get(4)?,
                     size_bytes: row.get(5)?,
-                    indexed_at: {
-                        let s: String = row.get(6)?;
-                        chrono::DateTime::parse_from_rfc3339(&format!("{}Z", s.replace(' ', "T")))
-                            .map(|dt| dt.to_utc())
-                            .unwrap_or(chrono::Utc::now())
-                    },
+                    indexed_at: parse_sqlite_datetime(row.get(6)?),
                     source_db: row.get(7)?,
                     source_id: row.get(8)?,
                 })
@@ -189,12 +200,7 @@ impl Store {
                     file_type: row.get(3)?,
                     sha256: row.get(4)?,
                     size_bytes: row.get(5)?,
-                    indexed_at: {
-                        let s: String = row.get(6)?;
-                        chrono::DateTime::parse_from_rfc3339(&format!("{}Z", s.replace(' ', "T")))
-                            .map(|dt| dt.to_utc())
-                            .unwrap_or(chrono::Utc::now())
-                    },
+                    indexed_at: parse_sqlite_datetime(row.get(6)?),
                     source_db: row.get(7)?,
                     source_id: row.get(8)?,
                 })
@@ -221,12 +227,35 @@ impl Store {
                     file_type: row.get(3)?,
                     sha256: row.get(4)?,
                     size_bytes: row.get(5)?,
-                    indexed_at: {
-                        let s: String = row.get(6)?;
-                        chrono::DateTime::parse_from_rfc3339(&format!("{}Z", s.replace(' ', "T")))
-                            .map(|dt| dt.to_utc())
-                            .unwrap_or(chrono::Utc::now())
-                    },
+                    indexed_at: parse_sqlite_datetime(row.get(6)?),
+                    source_db: row.get(7)?,
+                    source_id: row.get(8)?,
+                })
+            })
+            .map_err(|e| Error::Store(format!("Query failed: {}", e)))?;
+
+        rows.collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(|e| Error::Store(format!("Row parse failed: {}", e)))
+    }
+
+    /// List a bounded page of indexed artifacts.
+    pub fn list_page(&self, limit: usize, offset: usize) -> Result<Vec<IndexedArtifact>> {
+        let limit = limit.clamp(1, 500);
+        let mut stmt = self.conn.prepare(
+            "SELECT row_id, package_id, file_path, file_type, sha256, size_bytes, indexed_at, source_db, source_id
+             FROM artifacts ORDER BY indexed_at DESC, row_id DESC LIMIT ?1 OFFSET ?2"
+        ).map_err(|e| Error::Store(format!("Query failed: {}", e)))?;
+
+        let rows = stmt
+            .query_map(params![limit as i64, offset as i64], |row| {
+                Ok(IndexedArtifact {
+                    row_id: row.get(0)?,
+                    package_id: row.get(1)?,
+                    file_path: row.get(2)?,
+                    file_type: row.get(3)?,
+                    sha256: row.get(4)?,
+                    size_bytes: row.get(5)?,
+                    indexed_at: parse_sqlite_datetime(row.get(6)?),
                     source_db: row.get(7)?,
                     source_id: row.get(8)?,
                 })
@@ -287,46 +316,29 @@ impl Store {
 
     /// Get statistics about the store
     pub fn stats(&self) -> Result<StoreStats> {
-        let total_artifacts: u64 = self
+        let (total_artifacts, total_yaml, total_npz, total_packages, total_size) = self
             .conn
-            .query_row("SELECT COUNT(*) FROM artifacts", [], |row| row.get(0))
+            .query_row(
+                "SELECT
+                    COUNT(*),
+                    COALESCE(SUM(CASE WHEN file_type = 'yaml' THEN 1 ELSE 0 END), 0),
+                    COALESCE(SUM(CASE WHEN file_type = 'npz' THEN 1 ELSE 0 END), 0),
+                    COUNT(DISTINCT package_id),
+                    COALESCE(SUM(size_bytes), 0)
+                 FROM artifacts",
+                [],
+                |row| {
+                    let total_size: i64 = row.get(4)?;
+                    Ok((
+                        row.get::<_, u64>(0)?,
+                        row.get::<_, u64>(1)?,
+                        row.get::<_, u64>(2)?,
+                        row.get::<_, u64>(3)?,
+                        total_size as u64,
+                    ))
+                },
+            )
             .map_err(|e| Error::Store(format!("Stats query failed: {}", e)))?;
-
-        let total_yaml: u64 = self
-            .conn
-            .query_row(
-                "SELECT COUNT(*) FROM artifacts WHERE file_type = 'yaml'",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap_or(0);
-
-        let total_npz: u64 = self
-            .conn
-            .query_row(
-                "SELECT COUNT(*) FROM artifacts WHERE file_type = 'npz'",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap_or(0);
-
-        let total_packages: u64 = self
-            .conn
-            .query_row(
-                "SELECT COUNT(DISTINCT package_id) FROM artifacts",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap_or(0);
-
-        let total_size: u64 = self
-            .conn
-            .query_row(
-                "SELECT COALESCE(SUM(size_bytes), 0) FROM artifacts",
-                [],
-                |row| row.get::<_, i64>(0).map(|v| v as u64),
-            )
-            .unwrap_or(0);
 
         Ok(StoreStats {
             total_artifacts,
@@ -373,7 +385,15 @@ mod tests {
         let store = Store::open_in_memory().unwrap();
 
         store
-            .index_artifact("pkg1", "/tmp/test.yaml", "yaml", "abc123", 1024, "pdb", "1abc")
+            .index_artifact(ArtifactIndex {
+                package_id: "pkg1",
+                file_path: "/tmp/test.yaml",
+                file_type: "yaml",
+                sha256: "abc123",
+                size_bytes: 1024,
+                source_db: "pdb",
+                source_id: "1abc",
+            })
             .unwrap();
 
         let results = store.find_by_source("pdb", "1abc").unwrap();
@@ -386,10 +406,26 @@ mod tests {
         let store = Store::open_in_memory().unwrap();
 
         store
-            .index_artifact("pkg1", "/tmp/test.yaml", "yaml", "abc123", 1024, "pdb", "1abc")
+            .index_artifact(ArtifactIndex {
+                package_id: "pkg1",
+                file_path: "/tmp/test.yaml",
+                file_type: "yaml",
+                sha256: "abc123",
+                size_bytes: 1024,
+                source_db: "pdb",
+                source_id: "1abc",
+            })
             .unwrap();
         store
-            .index_artifact("pkg1", "/tmp/data.npz", "npz", "def456", 2048, "pdb", "1abc")
+            .index_artifact(ArtifactIndex {
+                package_id: "pkg1",
+                file_path: "/tmp/data.npz",
+                file_type: "npz",
+                sha256: "def456",
+                size_bytes: 2048,
+                source_db: "pdb",
+                source_id: "1abc",
+            })
             .unwrap();
 
         let stats = store.stats().unwrap();

@@ -16,7 +16,11 @@ pub struct Alphafold3Job {
 }
 
 impl Alphafold3Job {
-    pub fn new(name: impl Into<String>, model_seeds: Vec<i64>, sequences: Vec<SequenceEntry>) -> Self {
+    pub fn new(
+        name: impl Into<String>,
+        model_seeds: Vec<i64>,
+        sequences: Vec<SequenceEntry>,
+    ) -> Self {
         Self {
             name: name.into(),
             model_seeds,
@@ -151,21 +155,23 @@ pub fn parse_fasta_or_plain_sequence(text: &str) -> String {
         }
         seq.push_str(line);
     }
-    seq.chars().filter(|c| !c.is_whitespace()).collect::<String>().to_uppercase()
+    seq.chars()
+        .filter(|c| !c.is_whitespace())
+        .collect::<String>()
+        .to_uppercase()
 }
 
 /// Build AF3 sequences and assign unique chain IDs across entities.
-pub fn sequences_from_builder_entities(entities: &[BuilderEntity]) -> Result<Vec<SequenceEntry>, String> {
+pub fn sequences_from_builder_entities(
+    entities: &[BuilderEntity],
+) -> Result<Vec<SequenceEntry>, String> {
     let mut out = Vec::new();
     let mut chain_index: usize = 0;
 
     for ent in entities {
         let copies = ent.copies.max(1) as usize;
         let ids: Vec<String> = (0..copies)
-            .map(|i| {
-                let id = chain_id_for_index(chain_index + i);
-                id
-            })
+            .map(|i| chain_id_for_index(chain_index + i))
             .collect();
         chain_index += copies;
 

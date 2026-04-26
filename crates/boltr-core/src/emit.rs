@@ -327,7 +327,7 @@ pub fn emit_af3_job(
     output_dir: &std::path::Path,
 ) -> Result<EmittedFile> {
     let doc = build_boltr_document_with_af3(schema_version, job_name, model_seeds, entities)
-        .map_err(|e| Error::Emit(e))?;
+        .map_err(Error::Emit)?;
     validate_boltr_document(&doc)?;
 
     let yaml_str = serde_yaml::to_string(&doc)?;

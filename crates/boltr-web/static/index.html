@@ -5,9 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Boltr Bldr</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -84,6 +81,26 @@ ____
                 </thead>
                 <tbody id="artifacts-body">
                     <tr><td colspan="5" class="empty">No artifacts indexed</td></tr>
+                </tbody>
+            </table>
+
+            <div class="section-rule">---</div>
+            <h2 class="section-title">2. Packages</h2>
+            <div class="toolbar">
+                <button id="btn-refresh-packages" class="btn btn-secondary">Refresh packages</button>
+            </div>
+            <table id="packages-table">
+                <thead>
+                    <tr>
+                        <th>package</th>
+                        <th>files</th>
+                        <th>size</th>
+                        <th>created</th>
+                        <th>tags</th>
+                    </tr>
+                </thead>
+                <tbody id="packages-body">
+                    <tr><td colspan="5" class="empty">No packages found</td></tr>
                 </tbody>
             </table>
         </section>

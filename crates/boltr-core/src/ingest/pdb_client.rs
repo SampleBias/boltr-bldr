@@ -7,6 +7,7 @@ use crate::error::{Error, Result};
 use crate::models::pdb::*;
 
 /// Client for the RCSB PDB REST API
+#[derive(Clone)]
 pub struct PdbClient {
     client: reqwest::Client,
     data_api_url: String,
@@ -17,6 +18,7 @@ impl PdbClient {
     pub fn new() -> Result<Self> {
         let client = reqwest::Client::builder()
             .user_agent("boltr-bldr/0.1.0")
+            .timeout(std::time::Duration::from_secs(30))
             .build()?;
 
         Ok(Self {
@@ -109,7 +111,12 @@ impl PdbClient {
             length: json["entity_poly"]
                 .get("pdbx_strand_id")
                 .and_then(|v| v.as_str())
-                .map(|_| json["rcsb_polymer_entity"]["rcsb_entity_source_organism"].as_array().map(|a| a.len() as u32).unwrap_or(0)),
+                .map(|_| {
+                    json["rcsb_polymer_entity"]["rcsb_entity_source_organism"]
+                        .as_array()
+                        .map(|a| a.len() as u32)
+                        .unwrap_or(0)
+                }),
         };
 
         Ok(vec![entity])
@@ -161,10 +168,7 @@ impl PdbClient {
             .map(|arr| {
                 arr.iter()
                     .map(|xref| UniprotCrossRef {
-                        accession: xref["rcsb_id"]
-                            .as_str()
-                            .unwrap_or("UNKNOWN")
-                            .to_string(),
+                        accession: xref["rcsb_id"].as_str().unwrap_or("UNKNOWN").to_string(),
                         name: None,
                         chain_id: None,
                     })
